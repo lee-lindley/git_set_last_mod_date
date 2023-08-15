@@ -23,12 +23,14 @@ could change it in the middle of a merge, but it is too difficult to tease that 
 
 ## git_set_last_mod_date.pl
 
-The script implements the solution, updating all files found in the git log in non-merge commits.
-It uses the *utime* Perl command to set the last modification date to match the commit log record time.
+The script implements the solution, updating all files found in the git log in non-merge commits
+where the existing last modification time does not match the commit log record time.
+It uses the *utime* Perl function to set the last modification date.
 
-The script also (gratuitously) updates permissions on  \*.pl and \*.sh files to 0755, but only
-the files that are also in the git log for which it updates the last modification time. You might
-prefer to comment that out.
+The script may also update permissions on  \*.pl and \*.sh files to 0755, but only
+the files that are also in the git log for which it updates the last modification time. That command
+is commented out, but for a repository that is used as local accessories, it may be useful and likely
+doesn't hurt anything.
 
 ## Implementation
 
@@ -39,7 +41,7 @@ the location of *perl* executable.
 Update or add aliases for the most common operations where you want it to run. You can do so
 in a git alias or in a regular shell alias or function. For my money the right time to do it
 is on any *git checkout*, *git switch* or *git pull* command. I use the following two bash 
-shell functions:
+shell functions among others:
 
     gp() {
         git pull 
