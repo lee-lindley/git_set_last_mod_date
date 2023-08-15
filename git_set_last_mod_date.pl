@@ -40,17 +40,18 @@ $/ = "";
 while (<GITLOG>) {
     my (@r) = split /\R/;
     my $i = 0;
+    # find the starting point for capturing an event for file change
     while ($i < @r && $r[$i] =~ /^"Merge branch/) {
         $i++;
     }
     ;
-    next if $i == @r;
+    next if $i == @r; # it was all merges. skip it.
 
     my $msg = "";
     if ($r[$i] =~ s/^"(.*)" //) {
         $msg = $1;
     } else { # else odd case of a merge with no commit message
-        # so pick time up from merge
+        # so back up one and pick time up from merge
         $i--;
         $r[$i] =~ s/^"(.*)" //
     }
@@ -58,21 +59,30 @@ while (<GITLOG>) {
     $r[$i] =~ s/^(\d+) (\d+)$//gm                || die;
     my @times = ($1, $2);               # last one, others are merges
 
-    for ($i++; $i < @r; $i++) {
+    # We are at a point in the message where we may have files we need to set utime on
+    for ($i++; $i < @r; $i++) { # advance through list
         my $file = $r[$i];
-       next if $Seen{$file}++;
+        next if $Seen{$file}++;
         next if !-f $file;              # no longer here
+        my ($mtime_cur) = (stat(_))[9]; # get existing file mtime. the -f test put it in memory
 
-        printf "atime=%s mtime=%s %s -- %s\n",
-                (map { scalar localtime $_ } @times),
+        # the numbers we have from git are gmt seconds since epic.
+        # @times has two numbers - atime and mtime
+        # convert them to date/time strings in local timezone and print if we have DEBUG set in environment
+        printf "atime=%s mtime=%s exsiting mtime=%s %s -- %s\n",
+                (map { scalar localtime $_ } @times, $mtime_cur),
                 $file, $msg,
                                         if DEBUG;
 
-        unless (utime @times, $file) {
-            print STDERR "$0: Couldn't reset utimes on $file: $!\n";
-            $Oops++;
+        if ($mtime_cur != $times[1]) {
+            unless (utime @times, $file) {
+                print STDERR "$0: Couldn't reset utimes on $file: $!\n";
+                $Oops++;
+            }
+            #chmod 0755, $file if ($file =~ /\.(pl|sh)$/);
+        } elsif (DEBUG) {
+            printf "%s: mtime not changed\n", $file;
         }
-        chmod 0755, $file if ($file =~ /\.(pl|sh)$/);
     }
 
 }
