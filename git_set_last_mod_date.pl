@@ -14,6 +14,7 @@ use v5.10;      # for pipe open on a list
 use strict;
 use warnings;
 use constant DEBUG => !!$ENV{DEBUG};
+use POSIX qw(strftime);
 
 
 #die "did not find variable GIT_DIR in environment" unless $ENV{GIT_DIR};
@@ -63,15 +64,17 @@ while (<GITLOG>) {
     for ($i++; $i < @r; $i++) { # advance through list
         my $file = $r[$i];
         next if $Seen{$file}++;
-        next if !-f $file;              # no longer here
-        my ($mtime_cur) = (stat(_))[9]; # get existing file mtime. the -f test put it in memory
+        #next if !-f $file;              # no longer here
+        my ($mtime_cur) = (stat($file))[9]; # get existing file mtime. 
+        next unless $mtime_cur; # if undef, then file is no longer in current commit/branch
 
         # the numbers we have from git are gmt seconds since epic.
         # @times has two numbers - atime and mtime
         # convert them to date/time strings in local timezone and print if we have DEBUG set in environment
-        printf "atime=%s mtime=%s exsiting mtime=%s %s -- %s\n",
-                (map { scalar localtime $_ } @times, $mtime_cur),
-                $file, $msg,
+        printf "%-50.50s|atime=%s|mtime=%s|exsiting mtime=%s|%s\n",
+                $file, 
+                (map { strftime "%m/%d/%Y %H:%M:%S", localtime($_) } @times, $mtime_cur),
+                $msg,
                                         if DEBUG;
 
         if ($mtime_cur != $times[1]) {
@@ -81,7 +84,7 @@ while (<GITLOG>) {
             }
             #chmod 0755, $file if ($file =~ /\.(pl|sh)$/);
         } elsif (DEBUG) {
-            printf "%s: mtime not changed\n", $file;
+            printf "%-50.50s|mtime not changed\n", $file;
         }
     }
 
